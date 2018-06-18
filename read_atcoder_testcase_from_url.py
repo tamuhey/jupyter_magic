@@ -1,6 +1,6 @@
 import os
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup as bs
 from IPython.core import magic_arguments
 from IPython.core.magic import (register_line_magic, register_cell_magic, register_line_cell_magic)
 import builtins
