@@ -1,1 +1,3 @@
-*.ipynb
+*
+!atcoder_test.py
+!README.md
