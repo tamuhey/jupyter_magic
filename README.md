@@ -1,3 +1,5 @@
 # Jupyter Magic Command
 ## install
-`cp atcoder_test.py ~/.ipython/profile_default/startup/`
+
+`$ git clone https://github.com/tamurahey/jupyter_magic`  
+`$ cp atcoder_test.py ~/.ipython/profile_default/startup/`
