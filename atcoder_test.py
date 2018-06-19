@@ -4,6 +4,7 @@ import builtins
 import requests
 from bs4 import BeautifulSoup as bs
 from io import StringIO
+import sys
 
 
 @magic_arguments.magic_arguments()
@@ -62,6 +63,7 @@ class input_wrapper:
 class input_wrapper_from_file_name(input_wrapper):
     def __init__(self, fname):
         self.f = open(fname, "r")
+        self.f = open(fname, "r")
 
     def __call__(self):
         return self.return_input(self.f.readline().rstrip())
@@ -96,15 +98,18 @@ def _read_atcoder_testcase_from_url(url):
     r = requests.get(url)
     soup = bs(r.text, "xml")
     div = soup.find_all("div", attrs={"class": "part"})
-    count = 0
-    res = []
+    testcases, answer = [], []
     for d in div:
         h3 = d.h3
         if h3:
             if h3.text.startswith("入力例"):
                 content = d.pre.text[:-1]
-                res.append(content)
-    return res
+                testcases.append(content)
+            if h3.text.startswith("出力例"):
+                content = d.pre.text[:-1]
+                answer.append(content)
+
+    return testcases, answer
 
 
 def _toggle_input_by_file_names(fnames, cell):
@@ -116,8 +121,32 @@ def _toggle_input_by_file_names(fnames, cell):
     return
 
 
+def _exec_and_test(cell : str, answer : str):
+    old_stdout = sys.stdout
+    try:
+        sys.stdout = StringIO()
+        exec(cell)
+    finally:
+        outs = sys.stdout.getvalue()[:-1]
+        sys.stdout = old_stdout
+        print(outs)
+
+    buf = [ out for out in outs.split("\n") if not(out.startswith("<<<"))]
+    outs = buf
+    answer = answer.split("\n")
+    if len(outs) != len(answer):
+        return False
+    res = True
+    for out, ans in zip(outs, answer):
+        if out != ans:
+            res = False
+    return res
+
+
+
 def _toggle_input_by_url(url, cell, save_file_name):
-    testcases = _read_atcoder_testcase_from_url(url)
+    testcases, answer = _read_atcoder_testcase_from_url(url)
+    res = []
     for i, testcase in enumerate(testcases):
         print("... test case {} ...".format(i))
         if save_file_name:
@@ -126,6 +155,16 @@ def _toggle_input_by_url(url, cell, save_file_name):
                 f.write(testcase)
         else:
             _toggle_input(text=testcase)
-        exec(cell)
+        r =  _exec_and_test(cell, answer[i])
+        res.append(r)
+        if not(r):
+            print("!!! WA case{}".format(i))
+            print("!!! Answer : ")
+            print(answer[i])
+            print("\n")
+
         _toggle_input(toggle_off=True)
+    print("\n========== Report ==========")
+    for i,r in enumerate(res):
+        print("test {} : {:>10}".format(i,str(r)))
     return
