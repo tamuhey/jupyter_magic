@@ -14,12 +14,16 @@ from io import StringIO
 @magic_arguments.argument(
     "-u", "--url", type=str, help="url of testcase")
 @magic_arguments.argument(
-    "-s", "--save_file_name", type=str, help="prefix of name of file to save test cases got from url")
+    "-s", "--save_file_name", type=str, default=None, help="prefix of name of file to save test cases got from url")
+@magic_arguments.argument(
+    "content", type=str,
+    help='file(s) or url', nargs="*"
+)
 @register_line_cell_magic
 def test_input(line, cell):
     """test by change builtins.input to io.redeline(), etc...
 
-        %%test_input [-f filenames] | [-u url]  [-s sava file name]
+        %%test_input [filename(s) or url] [-f filenames] | [-u url]  [-s save file name]
 
     optional aruments:
        -f, --filenames           : file to change builtins.input to io.readline
@@ -27,24 +31,20 @@ def test_input(line, cell):
        -s, --save_file_name      : file name to save data got from url
     """
     args = magic_arguments.parse_argstring(test_input, line)
-    if args.filenames:
-        for fname in args.filenames:
-            print("... test case {} ...".format(fname))
-            _toggle_input(fname=fname)
-            exec(cell)
-            _toggle_input(toggle_off=True)
+    if args.content:
+        s0: str = args.content[0]
+        if s0.startswith("https://") or s0.startswith("http://"):
+            _toggle_input_by_url(s0, cell, args.save_file_name)
+            return
+        else:
+            _toggle_input_by_file_names(args.content, cell)
+            return
+    elif args.filenames:
+        _toggle_input_by_file_names(args.filenames, cell)
+        return
     elif args.url:
-        testcases = _read_atcoder_testcase_from_url(args.url)
-        for i, testcase in enumerate(testcases):
-            print("... test case {} ...".format(i))
-            if args.save_file_name:
-                _toggle_input(text=testcase)
-                with open(args.save_file_name + str(i), "w") as f:
-                    f.write(testcase)
-            else:
-                _toggle_input(text=testcase)
-            exec(cell)
-            _toggle_input(toggle_off=True)
+        _toggle_input_by_url(args.url, cell, args.save_file_name)
+        return
 
 
 class input_wrapper:
@@ -105,3 +105,27 @@ def _read_atcoder_testcase_from_url(url):
                 content = d.pre.text[:-1]
                 res.append(content)
     return res
+
+
+def _toggle_input_by_file_names(fnames, cell):
+    for fname in fnames:
+        print("... test case {} ...".format(fname))
+        _toggle_input(fname=fname)
+        exec(cell)
+        _toggle_input(toggle_off=True)
+    return
+
+
+def _toggle_input_by_url(url, cell, save_file_name):
+    testcases = _read_atcoder_testcase_from_url(url)
+    for i, testcase in enumerate(testcases):
+        print("... test case {} ...".format(i))
+        if save_file_name:
+            _toggle_input(text=testcase)
+            with open(save_file_name + str(i), "w") as f:
+                f.write(testcase)
+        else:
+            _toggle_input(text=testcase)
+        exec(cell)
+        _toggle_input(toggle_off=True)
+    return
