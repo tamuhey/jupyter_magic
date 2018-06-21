@@ -1,11 +1,16 @@
 from IPython.core import magic_arguments
-from IPython.core.magic import register_line_cell_magic
+from IPython.core.magic import register_cell_magic, Magics, magics_class
+from IPython.core.getipython import get_ipython
 import builtins
 import requests
 from bs4 import BeautifulSoup as bs
 from io import StringIO
 import sys
 
+@magics_class
+class test(Magics):
+    def testabab(self):
+        print(1)
 
 @magic_arguments.magic_arguments()
 @magic_arguments.argument(
@@ -20,7 +25,7 @@ import sys
     "content", type=str,
     help='file(s) or url', nargs="*"
 )
-@register_line_cell_magic
+@register_cell_magic
 def test_input(line, cell):
     """test by change builtins.input to io.redeline(), etc...
 
@@ -32,20 +37,25 @@ def test_input(line, cell):
        -s, --save_file_name      : file name to save data got from url
     """
     args = magic_arguments.parse_argstring(test_input, line)
-    if args.content:
-        s0: str = args.content[0]
-        if s0.startswith("https://") or s0.startswith("http://"):
-            _toggle_input_by_url(s0, cell, args.save_file_name)
+    try:
+        if args.content:
+            s0: str = args.content[0]
+            if s0.startswith("https://") or s0.startswith("http://"):
+                _toggle_input_by_url(s0, cell, args.save_file_name)
+                return
+            else:
+                _toggle_input_by_file_names(args.content, cell)
+                return
+        elif args.filenames:
+            _toggle_input_by_file_names(args.filenames, cell)
             return
-        else:
-            _toggle_input_by_file_names(args.content, cell)
+        elif args.url:
+            _toggle_input_by_url(args.url, cell, args.save_file_name)
             return
-    elif args.filenames:
-        _toggle_input_by_file_names(args.filenames, cell)
-        return
-    elif args.url:
-        _toggle_input_by_url(args.url, cell, args.save_file_name)
-        return
+    except:
+        global input
+        input = builtins.input
+        raise
 
 
 class input_wrapper:
@@ -115,17 +125,19 @@ def _read_atcoder_testcase_from_url(url):
 def _toggle_input_by_file_names(fnames, cell):
     for fname in fnames:
         print("... test case {} ...".format(fname))
+        ip = get_ipython()
         _toggle_input(fname=fname)
-        exec(cell)
+        ip.run_cell(cell)
         _toggle_input(toggle_off=True)
     return
 
 
 def _exec_and_test(cell : str, answer : str):
     old_stdout = sys.stdout
+    ip = get_ipython()
     try:
         sys.stdout = StringIO()
-        exec(cell)
+        ip_result = ip.run_cell(cell).result
     finally:
         outs = sys.stdout.getvalue()[:-1]
         sys.stdout = old_stdout
@@ -146,6 +158,12 @@ def _exec_and_test(cell : str, answer : str):
 
 def _toggle_input_by_url(url, cell, save_file_name):
     testcases, answer = _read_atcoder_testcase_from_url(url)
+    ip = get_ipython()
+    if not(testcases):
+        print("... NO TEST ...")
+        ip.run_cell(cell)
+        return
+
     res = []
     for i, testcase in enumerate(testcases):
         print("... test case {} ...".format(i))
@@ -168,3 +186,6 @@ def _toggle_input_by_url(url, cell, save_file_name):
     for i,r in enumerate(res):
         print("test {} : {:>10}".format(i,str(r)))
     return
+
+def testab():
+    print("tsetasetw")
